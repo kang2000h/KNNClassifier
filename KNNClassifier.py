@@ -2,7 +2,7 @@ import copy
 import numpy as np
 from collections import Counter
 from sklearn import datasets
-from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.model_selection import train_test_split
 
 from dist_utils import L2
 
@@ -19,6 +19,9 @@ class KNNClassifier():
 
     def predict(self, X, typeOfDist="L2"):
         Preds = [] # (lenOfX, )
+        if self._typeOfDist is None:
+            self._typeOfDist = typeOfDist
+
         if self._typeOfDist is "L2":
             for X_elem in X:
                 listOfDist = []
@@ -34,7 +37,13 @@ class KNNClassifier():
         return np.array(Preds)
 
     def get_accuracy(self, labels, preds):
-        return
+        labels = np.array(labels)
+        preds = np.array(preds)
+        corr = 0
+        for l, p in zip(labels, preds):
+            if l==p:
+                corr+=1
+        return corr/len(labels)
 
     # def get_specificity(self):
     #     return
@@ -43,7 +52,41 @@ class KNNClassifier():
     #     return
 
     def get_recall(self, labels, preds):
-        return
+        """
+        :param labels: (N, )
+        :param preds: (N, )
+        :return:
+        """
+        labels = np.array(labels)
+        preds = np.array(preds)
+
+        recall_dict = dict()
+        for label_ind in np.unique(labels):
+            ind_label_list = labels[labels==label_ind]
+            ind_pred_list = preds[labels==label_ind]
+            recall_dict[label_ind] = self.get_accuracy(ind_label_list, ind_pred_list)
+        return recall_dict
+
+    def get_confusion_matrix(self, labels, preds):
+        """
+        rows : labels, cols : preds
+        cells : number of samples which is predicted as the label
+        :param labels: (N, )
+        :param preds: (N, )
+        :return:
+        """
+        labels = np.array(labels)
+        preds = np.array(preds)
+
+        conf_matrix = []
+        for l in np.unique(labels):
+            label_conf_matrix = []
+            for expected_p in np.unique(labels):
+                ind_preds = preds[labels==l]
+                label_conf_matrix.append(len(ind_preds[ind_preds==expected_p]))
+            conf_matrix.append(label_conf_matrix)
+        return conf_matrix
+
 
     def _get_sorted_ind(self, items):
         items = np.array(items)
@@ -62,7 +105,10 @@ class KNNClassifier():
         return sorted_items[0][0]
 
 def KNN(training_set, test_set, K):
-    return
+    knn = KNNClassifier(K)
+    knn.fit(training_set, test_set)
+    predictions = knn.predict(test_set)
+    return knn.get_accuracy(test_set, predictions), knn.get_recall(test_set, predictions)
 
 
 
@@ -75,12 +121,24 @@ if __name__ == '__main__':
     print("X.shape", X.shape, X.min(), X.max()) # (150, 4) 0.1 7.9
     print("y.shape", y.shape, y.min(), y.max()) # (150,) 0 2 # (Setosa, Versicolour, and Virginica)
 
-    num_K = 3
+    # stratified sampling
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, stratify=y)
+    print("X_train.shape", X_train.shape)
+    print("X_test.shape", X_test.shape)
+    print("y_train.shape", y_train.shape, y_train)
+    print("y_test.shape", y_test.shape, y_test)
+
+    num_K = 5
     knn = KNNClassifier(num_K)
-    knn.fit(X, y)
-    preds = knn.predict(X) #
+    knn.fit(X_train, y_train)
+    preds = knn.predict(X_test) #
 
-    print("label", y, y.shape)
-    print("preds", preds, preds.shape)
+    print("label", y_test.shape, y_test)
+    print("preds", preds.shape, preds)
 
-
+    # Accuracy
+    print("Accuracy : ", knn.get_accuracy(y_test, preds))
+    # Recall (Specificity, Sensitivity)
+    print("Recall : ", knn.get_recall(y_test, preds))
+    # Confusion Matrix
+    print("Confusion Matrix\n", knn.get_confusion_matrix(y_test, preds))
