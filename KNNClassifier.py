@@ -1,9 +1,12 @@
+# https://statisticsbyjim.com/hypothesis-testing/bootstrapping/
+
 import copy
 import numpy as np
 from collections import Counter
 from sklearn import datasets
 from sklearn.model_selection import train_test_split
-# from sklearn.cross_validation import
+from sklearn.utils import resample
+from scipy.sparse import coo_matrix
 
 from custom_exception import CustomException
 from dist_utils import L1, L2
@@ -122,7 +125,7 @@ def KNN(training_set, test_set, K):
 
 
 if __name__ == '__main__':
-    mode = 'dev' # 'dev', 'test', 'bootstrap'
+    mode = 'test' # 'dev', 'test', 'bootstrap'
     if mode == 'dev':
         iris = datasets.load_iris()
         X = iris.data
@@ -171,3 +174,44 @@ if __name__ == '__main__':
         ACC, Recall = KNN(training_set=(X_train, y_train), test_set=(X_test, y_test), K=num_K)
         print("Accuracy:", ACC)
         print("Recall", Recall)
+
+    elif mode == 'bootstrap':
+        # load iris data
+        iris = datasets.load_iris()
+        X = iris.data
+        y = iris.target
+
+        # Stratified Sampling
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, stratify=y)
+        print("X_train.shape", X_train.shape)
+        print("X_test.shape", X_test.shape)
+        print("y_train.shape", y_train.shape, y_train)
+        print("y_test.shape", y_test.shape, y_test)
+
+        # KNN & bootstrap
+        num_K = 5
+        num_bootstrap = 100
+
+        X_train_sparse = coo_matrix(X_train)
+        acc_list = []
+        recall_list = [[] for ind in range(len(np.unique(y_train)))]
+        for ind in range(num_bootstrap):
+            print("[!] Bootstrap sampling:", ind)
+            resampled_X_train, _, resampled_y_train = resample(X_train, X_train_sparse, y_train)
+            #print("X_train_sparse", X_train_sparse, X_train_sparse.shape)
+            # print("resampled_X_train", resampled_X_train.shape)
+            # print("resampled_y_train", resampled_y_train)
+            resampled_X_train, _, resampled_y_train = resample(X_train, X_train_sparse, y_train)
+            # print("resampled_X_train", resampled_X_train.shape)
+            # print("resampled_y_train", resampled_y_train)
+            ACC, Recall = KNN(training_set=(resampled_X_train, resampled_y_train), test_set=(X_test, y_test), K=num_K)
+            # print("Accuracy:", ACC)
+            # print("Recall", Recall)
+            acc_list.append(ACC)
+            for ind2 in range(len(np.unique(y_train))):
+                recall_list[ind2].append(Recall[ind2])
+
+
+        print("test", np.array(recall_list).shape)
+        print("Accuracy:", np.mean(acc_list), np.std(acc_list))
+        print("Recall", np.mean(recall_list, axis=1), np.std(recall_list, axis=1))
