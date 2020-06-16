@@ -10,6 +10,7 @@ from scipy.sparse import coo_matrix
 
 from custom_exception import CustomException
 from dist_utils import L1, L2
+from statistics_utils import get_confident_interval
 
 class KNNClassifier():
     def __init__(self, num_K, typeOfDist="L2"):
@@ -122,10 +123,8 @@ def KNN(training_set, test_set, K):
     predictions = knn.predict(test_set[0])
     return knn.get_accuracy(test_set[1], predictions), knn.get_recall(test_set[1], predictions)
 
-
-
 if __name__ == '__main__':
-    mode = 'test' # 'dev', 'test', 'bootstrap'
+    mode = 'bootstrap' # 'dev', 'test', 'bootstrap'
     if mode == 'dev':
         iris = datasets.load_iris()
         X = iris.data
@@ -211,7 +210,5 @@ if __name__ == '__main__':
             for ind2 in range(len(np.unique(y_train))):
                 recall_list[ind2].append(Recall[ind2])
 
-
-        print("test", np.array(recall_list).shape)
-        print("Accuracy:", np.mean(acc_list), np.std(acc_list))
+        print("Accuracy:", np.mean(acc_list), np.std(acc_list), get_confident_interval(acc_list))
         print("Recall", np.mean(recall_list, axis=1), np.std(recall_list, axis=1))
